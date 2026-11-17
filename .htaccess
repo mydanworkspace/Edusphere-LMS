@@ -1,0 +1,8 @@
+# Apache (XAMPP): the browser must never download the database helper, SQL files or notes.
+# PHP can still include db.php from disk; only direct web requests are refused.
+<FilesMatch "\.(sql|txt|md)$">
+    Require all denied
+</FilesMatch>
+<Files "db.php">
+    Require all denied
+</Files>

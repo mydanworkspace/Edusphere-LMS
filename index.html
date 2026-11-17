@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<!--
+  ==========================================================================
+  EDUSPHERE PORTAL - SINGLE FILE (HTML + CSS + JavaScript)
+  Open this file in a browser. Pages are sections switched by the URL hash.
+  TABLE OF CONTENTS (search for "SECTION START" to jump between sections):
+    1. CSS ..... design system, layout, components, additions (inside <style>)
+    2. HTML .... shared header, session bar, then one view per page:
+                 home (login/story/apply/contacts), apply, dashboard, courses, course,
+                 resources, progress, finances, support (contact form), campus (iframes)
+    3. HTML .... message dialog, WhatsApp button, news ticker, footer
+    4. JS ...... shared app script (accounts, data, tracker, timetable, router, charts, search)
+    5. JS ...... page scripts: login page, apply form, contact form
+  XAMPP MODE: with api.php, db.php, admin.php and database.sql beside this file, data and accounts come from MySQL and are managed in admin.php.
+  SECURITY: in the browser, all checks are only for convenience; the PHP files repeat every check on the server.
+  (Original note) everything runs in the browser. Real login, password storage and validation must be done on a server over HTTPS.
+  ==========================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EduSphere Portal</title>
+  <meta name="description" content="EduSphere Portal: university learning management system with courses, live classes, progress tracking and fees.">
+  <!-- CSP via meta tag: limits where scripts, styles, fonts and frames load from. LIMITS: a meta tag cannot set frame-ancestors (clickjacking)
+       or reporting, and 'unsafe-inline' is kept for style attributes only (scripts are blocked unless they come from js/app.js). Production must send a real CSP HTTP header. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; frame-src https://www.google.com https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- ===================================================================== -->
+  <!-- ===== SECTION START: CSS (styles now live in css/style.css) ===== -->
+  <!-- ===================================================================== -->
+  <link rel="stylesheet" href="css/style.css">
+  <!-- ===== SECTION END: CSS ===== -->
+</head>
+<body>
+  <!-- ===== SECTION START: HTML - Skip link and header (public + logged-in navigation, search, account buttons) ===== -->
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <!-- Fixed top area: header, menu and the session bar (countdowns) stay visible while scrolling -->
+  <div class="sticky-top" id="sticky-top">
+  <header class="site-header">
+    <div class="wrap site-header__bar">
+      <a class="brand" id="brand" href="#/home">EduSphere Portal</a>
+      <button class="btn btn-secondary nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
+      <nav class="site-nav" id="primary-nav" aria-label="Primary">
+        <!-- Shown when logged out -->
+        <ul id="nav-public">
+        <li><a href="#/login" data-r="login">Log in</a></li>
+        <li><a href="#/about" data-r="about">About us</a></li>
+        <li><a href="#/apply" data-r="apply">Apply</a></li>
+        <li><a href="#/contacts" data-r="contacts">Contacts</a></li>
+        </ul>
+        <!-- Shown when logged in -->
+        <ul id="nav-private" hidden>
+        <li><a href="#/dashboard" data-r="dashboard">Dashboard</a></li>
+        <li><a href="#/courses" data-r="courses">Courses</a></li>
+        <li><a href="#/finances" data-r="finances">Finances</a></li>
+        <li><a href="#/progress" data-r="progress">My Progress</a></li>
+        <li><a href="#/live" data-r="live">Live Classes <span class="dot dot--nav" id="live-dot" hidden title="A class is live now"></span></a></li>
+        <li><a href="#/support" data-r="support">Support</a></li>
+        <li><a href="#/resources" data-r="resources">Resources</a></li>
+        </ul>
+      </nav>
+<!-- Keyword search across courses, units and pages -->
+    <div class="wrap search" id="search-wrap" hidden><label class="visually-hidden" for="q">Search the portal</label>
+      <input id="q" type="search" placeholder="Search courses, units, fees, live classes..." autocomplete="off" maxlength="60">
+      <ul class="results" id="results" role="list" hidden></ul></div>
+      <div class="auth">
+        <span id="login-status">Not signed in</span>
+        <button class="btn btn-secondary" id="mail-btn" type="button">Message someone</button>
+        <button class="btn btn-secondary" id="logout-btn" type="button" hidden>Logout</button>
+      </div>
+    </div>
+  </header>
+  <!-- ===== SECTION END: header ===== -->
+
+  <!-- ===== SECTION START: HTML - Session bar (last seen, time in system, countdowns) ===== -->
+<!-- Session bar: when you were last here, time since you logged in, and live countdowns -->
+  <section class="statusbar" hidden id="statusbar" aria-label="Your session">
+    <div class="wrap statusbar__in">
+      <p><span class="sb-l">Last seen</span><strong id="sb-last">-</strong></p>
+      <p><span class="sb-l">Time in system (this login)</span><strong id="sb-time">00:00:00</strong></p>
+      <p><span class="sb-l">Next live class</span><strong id="sb-class">-</strong></p>
+      <p><span class="sb-l">Next CAT / assignment</span><strong id="sb-due">-</strong></p>
+    </div>
+  </section>
+  </div>
+  <!-- ===== SECTION END: session bar (end of the fixed top area) ===== -->
+
+  <!-- ===== SECTION START: HTML - Main content: all page views live inside this <main> ===== -->
+  <main id="main-content" tabindex="-1">
+
+    <!-- ===================================================================== -->
+    <!-- ===== SECTION START: HTML VIEW "Home: login, story, apply, contacts" (route #/home) ===== -->
+    <!-- ===================================================================== -->
+    <section class="view" data-view="home" hidden>
+    <!-- 1. LOGIN comes first. Course content is NOT on this page. -->
+    <section class="hero" id="login" aria-labelledby="login-h">
+      <div class="wrap hero__inner">
+        <div class="reveal"><h1>EduSphere Portal</h1><p>Sign in to open your courses, live classes and study progress.</p></div>
+        <div class="form-card login-card reveal">
+          <div class="tabs" id="auth-tabs" role="tablist" aria-label="Account options">
+            <button class="tab" type="button" role="tab" id="tab-login" aria-selected="true" aria-controls="auth-panel">Log in</button>
+            <button class="tab" type="button" role="tab" id="tab-create" aria-selected="false" aria-controls="auth-panel" tabindex="-1">Create account</button>
+          </div>
+          <div id="auth-panel" role="tabpanel" aria-labelledby="tab-login">
+            <h2 id="login-h">Student login</h2>
+            <div class="error-box" id="login-errors" role="alert" tabindex="-1" hidden></div>
+            <form id="login-form" novalidate>
+              <div class="field"><label for="user">Username</label><input type="text" id="user" required autocomplete="username" maxlength="30"></div>
+              <div class="field"><label for="pass">Password</label>
+                <!-- Eye button: a real button that toggles the field between hidden and visible text -->
+                <div class="pw"><input type="password" id="pass" required autocomplete="current-password" minlength="6" maxlength="64" aria-describedby="pw-hint">
+                  <button type="button" class="eye" data-for="pass" aria-label="Show password" aria-pressed="false"><svg class="ic-show" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><svg class="ic-hide" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button></div>
+                <p class="hint" id="pw-hint">At least 6 characters with letters and a number, for example Mary2026.</p>
+                <p class="hint" id="pw-strength" aria-live="polite" hidden></p></div>
+              <div class="field" id="confirm-field" hidden><label for="pass2">Confirm password</label>
+                <div class="pw"><input type="password" id="pass2" autocomplete="new-password" maxlength="64" aria-describedby="pw-match">
+                  <button type="button" class="eye" data-for="pass2" aria-label="Show password" aria-pressed="false"><svg class="ic-show" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><svg class="ic-hide" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button></div>
+                <p class="hint" id="pw-match" aria-live="polite"></p></div>
+              <button class="btn btn-primary" id="auth-submit" type="submit">Log in</button>
+            </form>
+            <div id="signed-in" hidden><p>You are signed in as <strong id="signed-name"></strong>.</p><a class="btn btn-primary btn-lg" href="#/dashboard">Go to dashboard</a></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <div class="wrap">
+      <!-- 2. School advertising: story, images, alumni quotes -->
+      <section class="section" id="about" aria-labelledby="about-h" style="padding-top:var(--space-5)">
+        <h2 id="about-h">Our story</h2>
+        <div class="split">
+          <div class="reveal"><p>EduSphere began as a small college in Nairobi and grew into a university known for practical learning and strong student support. Sample history: replace with your own.</p>
+            <ul class="timeline"><li><strong>1998:</strong> Founded with 120 students and 6 lecturers.</li><li><strong>2006:</strong> Awarded its university charter.</li><li><strong>2015:</strong> Launched the digital campus and online library.</li><li><strong>2024:</strong> Introduced live online classes.</li></ul></div>
+          <div class="figure reveal"><svg viewBox="0 0 400 240" role="img" aria-label="Illustration of the EduSphere campus with a clock tower and lecture halls">
+  <rect width="400" height="240" fill="#dbeafe"/><circle cx="330" cy="50" r="26" fill="#fde68a"/>
+  <rect y="190" width="400" height="50" fill="#10b981"/>
+  <rect x="40" y="110" width="120" height="80" fill="#1e3a8a"/><rect x="240" y="120" width="120" height="70" fill="#172554"/>
+  <rect x="170" y="60" width="60" height="130" fill="#334155"/><polygon points="165,60 200,25 235,60" fill="#1e3a8a"/>
+  <circle cx="200" cy="85" r="14" fill="#fff"/><path d="M200 85V76M200 85l7 4" stroke="#1e3a8a" stroke-width="3" fill="none"/>
+  <g fill="#fde68a"><rect x="55" y="125" width="18" height="18"/><rect x="90" y="125" width="18" height="18"/><rect x="125" y="125" width="18" height="18"/><rect x="255" y="135" width="18" height="18"/><rect x="290" y="135" width="18" height="18"/><rect x="325" y="135" width="18" height="18"/></g>
+  <rect x="185" y="150" width="30" height="40" fill="#10b981"/></svg></div>
+        </div>
+      </section>
+      <section class="section" aria-labelledby="alumni-h">
+        <h2 id="alumni-h">What our alumni say</h2>
+        <div class="split"><div class="figure reveal"><svg viewBox="0 0 400 240" role="img" aria-label="Illustration of graduates throwing caps in the air">
+  <rect width="400" height="240" fill="#d1fae5"/>
+  <g fill="#1e3a8a"><polygon points="90,70 130,50 170,70 130,90"/><polygon points="230,40 270,20 310,40 270,60"/><polygon points="300,110 340,90 380,110 340,130"/></g>
+  <g fill="#172554"><circle cx="110" cy="190" r="20"/><circle cx="200" cy="190" r="20"/><circle cx="290" cy="190" r="20"/></g>
+  <g fill="#10b981"><rect x="85" y="205" width="50" height="35" rx="8"/><rect x="175" y="205" width="50" height="35" rx="8"/><rect x="265" y="205" width="50" height="35" rx="8"/></g></svg></div><div class="grid" style="grid-template-columns:1fr">
+        <figure class="card quote reveal"><div class="avatar" aria-hidden="true">AW</div><blockquote><p>"EduSphere taught me to learn independently. The live classes and mentors opened my first job offer."</p></blockquote><figcaption><strong>Amina Wekesa</strong><br>Class of 2009, Software Engineer</figcaption></figure>
+        <figure class="card quote reveal"><div class="avatar" aria-hidden="true">KO</div><blockquote><p>"The accounting lecturers treated us like colleagues. I still use those notes at work."</p></blockquote><figcaption><strong>Kevin Ochieng</strong><br>Class of 2014, Financial Analyst</figcaption></figure>
+        <figure class="card quote reveal"><div class="avatar" aria-hidden="true">GM</div><blockquote><p>"From the library to the labs, every door was open to curious students."</p></blockquote><figcaption><strong>Grace Mutheu</strong><br>Class of 2019, Data Scientist</figcaption></figure>
+        </div></div>
+      </section>
+      <!-- 3. Apply -->
+      <section class="section cta reveal" aria-labelledby="apply-h"><h2 id="apply-h">Ready to join EduSphere?</h2><p>Applications for the next intake are open.</p>
+        <a class="btn btn-primary btn-lg" href="#/apply">Apply now</a></section>
+      <!-- 4. Contacts -->
+      <section class="section" id="contacts" aria-labelledby="contacts-h" style="padding-top:var(--space-5)">
+        <h2 id="contacts-h">Contact us</h2>
+        <div class="grid">
+          <article class="card reveal"><h3>Admissions</h3><p><a href="mailto:admissions@edusphere.ac.ke">admissions@edusphere.ac.ke</a><br><a href="tel:+254700000201">+254 700 000 201</a></p></article>
+          <article class="card reveal"><h3>Student support</h3><p><a href="mailto:support@edusphere.ac.ke">support@edusphere.ac.ke</a><br><a href="tel:+254700000202">+254 700 000 202</a></p></article>
+          <article class="card reveal"><h3>Finance office</h3><p><a href="mailto:finance@edusphere.ac.ke">finance@edusphere.ac.ke</a><br><a href="tel:+254700000203">+254 700 000 203</a></p></article>
+          <article class="card reveal"><h3>Visit us</h3><p>P.O. Box 00100, Nairobi, Kenya<br>Monday to Friday, 8:00 to 17:00</p></article>
+        </div>
+      </section>
+    </div>
+  
+    </section>
+    <!-- ===== SECTION END: HTML VIEW "Home: login, story, apply, contacts" ===== -->
+
+    <!-- ===================================================================== -->
+    <!-- ===== SECTION START: HTML VIEW "Apply" (route #/apply) ===== -->
+    <!-- ===================================================================== -->
+    <section class="view" data-view="apply" hidden><div class="wrap">
+    <h1>Apply to EduSphere</h1>
+    <div class="form-card">
+      <h2>Application form</h2>
+      <div class="error-box" id="app-errors" role="alert" tabindex="-1" hidden></div>
+      <div class="msg" id="app-ok" role="status" aria-live="polite"></div>
+      <form id="app-form" novalidate>
+        <div class="field"><label for="a-name">Full name</label><input type="text" id="a-name" required autocomplete="name" maxlength="80"></div>
+        <div class="field"><label for="a-email">Email</label><input type="email" id="a-email" required autocomplete="email" maxlength="120"></div>
+        <div class="field"><label for="a-tel">Phone</label><input type="tel" id="a-tel" required autocomplete="tel" maxlength="20"></div>
+        <div class="field"><label for="a-prog">Programme</label><select id="a-prog" required><option value="" selected disabled>Choose a programme</option><option>Computer Science</option><option>Mathematics</option><option>Business Management</option><option>Accounting and Finance</option></select></div>
+        <div class="field"><label for="a-why">Why do you want to join?</label><textarea id="a-why" rows="4" maxlength="800"></textarea></div>
+        <button class="btn btn-primary" type="submit">Submit application</button>
+      </form>
+    </div>
+  </div>
+    </section>
+    <!-- ===== SECTION END: HTML VIEW "Apply" ===== -->
+
+    <!-- ===================================================================== -->
+    <!-- ===== SECTION START: HTML VIEW "Dashboard" (route #/dashboard) ===== -->
+    <!-- ===================================================================== -->
+    <section class="view" data-view="dashboard" hidden><div class="wrap">
+    <section class="section"><h1 id="welcome-name">Welcome</h1>
+      <p>Pick up where you left off, join a live class or check the latest school news.</p></section>
+    <section class="section" id="live" aria-labelledby="live-h"><h2 id="live-h">Live classes</h2>
+      <!-- Matches the weekly timetable: 11 classes, East Africa Time. Updates every 30 seconds. -->
+      <div id="live-banner" role="status" aria-live="polite"></div>
+      <div class="table-scroll" id="live-table"></div>
+      <!-- CATs 1, 2 and 3 every 3 weeks; assignments 1 and 2 every 2 weeks -->
+      <h3 style="margin-top:var(--space-4)">CATs and assignments</h3>
+      <p>CATs come every 3 weeks (weeks 3, 6 and 9). Assignments come every 2 weeks (weeks 2 and 4). The final exam is in week 13.</p>
+      <div class="table-scroll" id="assess-table"></div></section>
+    <section class="section" aria-labelledby="mc-h"><h2 id="mc-h">My courses</h2><div class="grid" id="dash-grid"></div></section>
+    <section class="section" aria-labelledby="news-h"><h2 id="news-h">School news</h2><div class="news reveal"><div class="news__box" id="news-box" aria-live="off"></div></div></section>
+  </div>
+    </section>
+    <!-- ===== SECTION END: HTML VIEW "Dashboard" ===== -->
+
+    <!-- ===================================================================== -->
+    <!-- ===== SECTION START: HTML VIEW "Courses" (route #/courses) ===== -->
+    <!-- ===================================================================== -->
+    <section class="view" data-view="courses" hidden><div class="wrap"><h1>Courses</h1><h2>Choose a course to see its units and study links</h2><div class="grid" id="course-grid"></div></div>
+    </section>
+    <!-- ===== SECTION END: HTML VIEW "Courses" ===== -->
+
+    <!-- ===================================================================== -->
+    <!-- ===== SECTION START: HTML VIEW "Course detail" (route #/course) ===== -->
+    <!-- ===================================================================== -->
+    <section class="view" data-view="course" hidden><div class="wrap"><p><a href="#/courses">Back to all courses</a></p><div id="course-root"></div></div>
+    </section>
+    <!-- ===== SECTION END: HTML VIEW "Course detail" ===== -->
+
+    <!-- ===================================================================== -->
+    <!-- ===== SECTION START: HTML VIEW "Study Resources" (route #/resources) ===== -->
+    <!-- ===================================================================== -->
+    <section class="view" data-view="resources" hidden><div class="wrap">
+    <h1>Study Resources</h1>
+    <p>Every notes and video link for every course, grouped by course. Opening a link, or ticking "Studied", is saved to your account. Looking for the campus map? See <a href="#/campus">Campus map and video</a>.</p>
+    <ul class="chips" id="res-jump" aria-label="Jump to a course"></ul>
+    <div id="res-root"></div>
+  </div>
+    </section>
+    <!-- ===== SECTION END: HTML VIEW "Study Resources" ===== -->
+
+    <!-- ===================================================================== -->
+    <!-- ===== SECTION START: HTML VIEW "My Progress" (route #/progress) ===== -->
+    <!-- ===================================================================== -->
+    <section class="view" data-view="progress" hidden><div class="wrap">
+    <h1>My Progress</h1>
+    <p>Progress is the share of resource time you have studied. Opening a resource, or ticking "Studied" on a course page, counts its full length.</p>
+    <section class="section card" aria-labelledby="ov-h"><h2 id="ov-h">Overall</h2><div id="overall"></div></section>
+    <section class="section" aria-labelledby="pie-h"><h2 id="pie-h">Pie charts by course</h2><div class="grid" id="pies"></div></section>
+    <section class="section" aria-labelledby="bar-h"><h2 id="bar-h">Graph: % studied per course</h2><div class="bars" id="bars" role="img" aria-label="Bar graph of percent studied per course"></div></section>
+  </div>
+    </section>
+    <!-- ===== SECTION END: HTML VIEW "My Progress" ===== -->
+
+    <!-- ===================================================================== -->
+    <!-- ===== SECTION START: HTML VIEW "Finances" (route #/finances) ===== -->
+    <!-- ===================================================================== -->
+    <section class="view" data-view="finances" hidden><div class="wrap">
+    <h1>Finances</h1><h2>Module fees</h2><p>Fees are per module for the current semester, in Kenya shillings (KES).</p>
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Fees table">
+      <table><caption>Modules, credit hours, fees and availability</caption>
+        <thead><tr><th scope="col">Category</th><th scope="col">Module</th><th scope="col" class="num">Credit Hours</th><th scope="col" class="num">Fee (KES)</th><th scope="col">Status</th></tr></thead>
+        <!-- rowspan groups modules by category (3 + 3 + 2 = 8 rows) -->
+        <tbody>
+          <tr><th scope="rowgroup" rowspan="3">Computer Science Core</th><td>CS101 Introduction to Programming</td><td class="num">3</td><td class="num">KES 45,000</td><td><span class="badge badge--ok">Available</span></td></tr>
+          <tr><td>CS201 Data Structures</td><td class="num">3</td><td class="num">KES 48,000</td><td><span class="badge badge--ok">Available</span></td></tr>
+          <tr><td>CS301 Databases</td><td class="num">4</td><td class="num">KES 60,000</td><td><span class="badge badge--full">Full</span></td></tr>
+          <tr><th scope="rowgroup" rowspan="3">Mathematics</th><td>MA101 Calculus I</td><td class="num">3</td><td class="num">KES 36,000</td><td><span class="badge badge--ok">Available</span></td></tr>
+          <tr><td>MA102 Linear Algebra</td><td class="num">3</td><td class="num">KES 36,000</td><td><span class="badge badge--ok">Available</span></td></tr>
+          <tr><td>MA201 Statistics</td><td class="num">3</td><td class="num">KES 39,000</td><td><span class="badge badge--ok">Available</span></td></tr>
+          <tr><th scope="rowgroup" rowspan="2">Business</th><td>BU101 Principles of Management</td><td class="num">3</td><td class="num">KES 33,000</td><td><span class="badge badge--ok">Available</span></td></tr>
+          <tr><td>BU205 Financial Accounting</td><td class="num">4</td><td class="num">KES 44,000</td><td><span class="badge badge--full">Full</span></td></tr>
+        </tbody>
+        <!-- colspan: every footer row adds up to 5 columns -->
+        <tfoot>
+          <tr><th scope="row" colspan="2">Total credit hours</th><td class="num">26</td><td colspan="2"></td></tr>
+          <tr><th scope="row" colspan="3">Total fees (KES)</th><td class="num">KES 341,000</td><td></td></tr>
+        </tfoot></table></div>
+    <section class="section" style="margin-top:var(--space-5)" aria-labelledby="fc-h"><h2 id="fc-h">Finance office contacts</h2>
+      <div class="grid">
+        <article class="card"><h3>Email</h3><p><a href="mailto:finance@edusphere.ac.ke">finance@edusphere.ac.ke</a><br><a href="mailto:fees@edusphere.ac.ke">fees@edusphere.ac.ke</a></p></article>
+        <article class="card"><h3>Phone and WhatsApp</h3><p><a href="tel:+254700000203">+254 700 000 203</a><br><a href="https://wa.me/254700000203" target="_blank" rel="noopener noreferrer">Chat on WhatsApp</a></p></article>
+        <article class="card"><h3>Visit</h3><p>Finance Office, Administration Block, Ground Floor<br>Monday to Friday, 8:00 to 17:00</p></article>
+      </div></section>
+    <section class="section" aria-labelledby="pg-h"><h2 id="pg-h">Payment guidelines</h2>
+      <p>Sample guidelines: replace the account details with your official ones.</p>
+      <ol><li>Check the fee for each module in the table above before you pay.</li>
+      <li>Pay by M-Pesa Paybill (business number 000000, account: your student number) or by bank transfer to EduSphere University, account 0000000000.</li>
+      <li>Keep the confirmation SMS or bank slip. Email it to <a href="mailto:fees@edusphere.ac.ke">fees@edusphere.ac.ke</a> with your name and student number.</li>
+      <li>Payments are shown on your record within 2 working days.</li>
+      <li>Never pay cash to a staff member or share your password. Only use the official accounts above.</li></ol></section>
+    <section class="section" aria-labelledby="tp-h"><h2 id="tp-h">Terms and policy</h2>
+      <p>Sample policy text: replace it with your official terms.</p>
+      <details open><summary>Payment deadlines and instalments</summary><p>Fees are due before registration closes. Students may pay in 3 instalments: 50% at registration, 30% by week 5 and 20% by week 9.</p></details>
+      <details><summary>Late payment</summary><p>Fees paid after the deadline attract a late fee of KES 2,000. Exam cards are released only after the required instalment is cleared.</p></details>
+      <details><summary>Refunds and withdrawals</summary><p>Withdrawing in the first 2 weeks earns a 75% refund. After week 2 fees are not refundable. Refunds are paid within 30 days to the original payer.</p></details>
+      <details><summary>Module availability</summary><p>A module marked Full cannot be registered. If a module is cancelled, fees are moved to another module or refunded in full.</p></details>
+      <details><summary>Scholarships and bursaries</summary><p>Apply to the finance office within the first 3 weeks. Awards are reviewed each semester.</p></details>
+      <details><summary>Privacy of financial records</summary><p>Your financial record is only shared with you and authorised finance staff.</p></details></section>
+  </div>
+    </section>
+    <!-- ===== SECTION END: HTML VIEW "Finances" ===== -->
+
+    <!-- ===================================================================== -->
+    <!-- ===== SECTION START: HTML VIEW "Support (contact form)" (route #/support) ===== -->
+    <!-- ===================================================================== -->
+    <section class="view" data-view="support" hidden><div class="wrap"><h1>Feedback &amp; Support</h1>
+    <div class="form-card"><h2>Contact your department</h2>
+      <div class="error-box" id="form-errors" role="alert" tabindex="-1" hidden></div>
+      <form id="contact-form" novalidate>
+        <div class="field"><label for="name">Name</label><input type="text" id="name" required autocomplete="name" maxlength="80"></div>
+        <div class="field"><label for="email">Email</label><input type="email" id="email" required autocomplete="email" maxlength="120"></div>
+        <div class="field"><label for="category">Department / issue category</label><select id="category" required><option value="" selected disabled>Choose a category</option><option>Admissions</option><option>Fees &amp; Finance</option><option>Academic Records</option><option>IT Support</option><option>Library</option><option>General Feedback</option></select></div>
+        <div class="field"><label for="comment">Student comment</label><textarea id="comment" rows="5" maxlength="1000" aria-describedby="count"></textarea><p class="hint" id="count">0 / 1000 characters</p></div>
+        <div class="field"><label for="upload">Upload assignment or screenshot</label><input type="file" id="upload" accept=".pdf,.png,.jpg,.jpeg" aria-describedby="fh"><p class="hint" id="fh">PDF, PNG or JPG, up to 5 MB.</p></div>
+        <button class="btn btn-primary" type="submit">Send request</button>
+      </form></div></div>
+    </section>
+    <!-- ===== SECTION END: HTML VIEW "Support (contact form)" ===== -->
+
+    <!-- ===================================================================== -->
+    <!-- ===== SECTION START: HTML VIEW "Campus map and video" (route #/campus) ===== -->
+    <!-- ===================================================================== -->
+    <section class="view" data-view="campus" hidden><div class="wrap"><h1>Resources</h1><h2>Campus map and learning video</h2>
+    <div class="grid grid--2">
+      <article class="card"><h3>Find the campus</h3><p>Plan your route to the University of Nairobi main campus (sample location).</p>
+        <div class="embed"><iframe title="Google Map of University of Nairobi main campus, Nairobi, Kenya" src="https://www.google.com/maps?q=University+of+Nairobi+Main+Campus&amp;output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" sandbox="allow-scripts allow-same-origin allow-popups" allowfullscreen></iframe></div>
+        <p><a href="https://www.google.com/maps?q=University+of+Nairobi+Main+Campus" target="_blank" rel="noopener noreferrer">Open in a new tab</a></p></article>
+      <article class="card"><h3>Learn the basics of computing</h3><p>Privacy-friendly embed: no tracking cookies until you press play.</p>
+        <div class="embed"><iframe title="Educational video: Crash Course Computer Science, early computing" src="https://www.youtube-nocookie.com/embed/tpIctyqH29Q" loading="lazy" referrerpolicy="no-referrer-when-downgrade" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" allowfullscreen></iframe></div>
+        <p><a href="https://www.youtube.com/watch?v=tpIctyqH29Q" target="_blank" rel="noopener noreferrer">Open in a new tab</a></p></article>
+    </div></div>
+    </section>
+    <!-- ===== SECTION END: HTML VIEW "Campus map and video" ===== -->
+
+  </main>
+  <!-- ===== SECTION END: main content ===== -->
+
+  <!-- ===== SECTION START: HTML - Message dialog (Gmail / Outlook / WhatsApp) and floating WhatsApp button ===== -->
+  <dialog id="mail-dialog" aria-labelledby="mail-h">
+    <h2 id="mail-h">Message someone</h2>
+    <p class="hint">Use an email for Gmail or Outlook, or a WhatsApp number for WhatsApp.</p>
+    <div class="field"><label for="mail-to">Recipient email</label><input type="email" id="mail-to" autocomplete="off" maxlength="120"></div>
+    <div class="field"><label for="mail-wa">WhatsApp number (with country code)</label><input type="tel" id="mail-wa" placeholder="254712345678" autocomplete="off" maxlength="20"></div>
+    <div class="field"><label for="mail-sub">Message</label><textarea id="mail-sub" rows="3" maxlength="500"></textarea></div>
+    <p class="form-msg" id="mail-msg" role="alert"></p>
+    <div class="row">
+      <button class="btn btn-primary" id="mail-gmail" type="button">Gmail</button>
+      <button class="btn btn-primary" id="mail-outlook" type="button">Outlook</button>
+      <button class="btn btn-primary" id="mail-whatsapp" type="button">WhatsApp</button>
+      <button class="btn btn-secondary" id="mail-cancel" type="button">Cancel</button>
+    </div>
+  </dialog>
+
+  <!-- Floating WhatsApp support button. Replace 254700000000 with the school's real WhatsApp number -->
+  <a class="wa" href="https://wa.me/254700000000?text=Hello%20EduSphere%2C%20I%20need%20support" target="_blank" rel="noopener noreferrer" aria-label="Chat with support on WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0-7.7 13.6L3 21l4.500-1.200A9 9 0 1 0 12 3z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 8c0 4 3 7 7 7l1-2-2.500-1-1 1c-1-.5-2-1.500-2.500-2.500l1-1L11 8z" fill="currentColor"/></svg></a>
+  <!-- ===== SECTION END: dialog and WhatsApp ===== -->
+
+  <!-- ===== SECTION START: HTML - News ticker and footer ===== -->
+  <!-- School updates ticker: scrolls continuously, pauses on hover; second copy is hidden from screen readers -->
+  <section class="ticker" aria-label="School updates"><strong class="ticker__label">Updates</strong>
+    <div class="ticker__track"><div class="ticker__move"><span>Vice Chancellor urges students to prepare for the upcoming exams</span><span>Library extends opening hours during the exam period</span><span>Semester registration closes on 30 November</span><span>Alumni career fair announced for January</span><span>New live-class timetable is now available on your dashboard</span><span aria-hidden="true"></span><span aria-hidden='true'>Vice Chancellor urges students to prepare for the upcoming exams</span><span aria-hidden='true'>Library extends opening hours during the exam period</span><span aria-hidden='true'>Semester registration closes on 30 November</span><span aria-hidden='true'>Alumni career fair announced for January</span><span aria-hidden='true'>New live-class timetable is now available on your dashboard</span></div></div></section>
+
+  <footer class="site-footer">
+    <div class="wrap site-footer__inner">
+      <span>&copy; 2026 EduSphere Portal. All rights reserved.</span>
+      <span>Contacts: <a href="mailto:info@edusphere.ac.ke">info@edusphere.ac.ke</a></span>
+    </div>
+  </footer>
+  <!-- ===== SECTION END: ticker and footer ===== -->
+
+  <!-- ===================================================================== -->
+  <!-- ===== SECTION START: JS - shared application script ===== -->
+  <!-- ===================================================================== -->
+  <script src="js/app.js"></script>
+  <!-- ===== SECTION END: shared application script ===== -->
+
+  <!-- ===== SECTION START: JS - page scripts (login page, apply form, contact form) ===== -->
+  <!-- (the login, apply and contact page scripts are the last sections of js/app.js) -->
+  <!-- ===== SECTION END: page scripts ===== -->
+</body>
+</html>
